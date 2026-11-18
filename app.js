@@ -73,22 +73,7 @@ async function connectFirebase(){let config;try{let raw=$('firebaseConfig').valu
  syncCloud()
  }catch(e){status('Cloud read error: '+e.message)}}else status('Local save active')});alert('Firebase connected. Now tap Sign in with Google.')}catch(e){status('Firebase connection error');alert(e.message)}}
 // Explicit, one-time destructive reset; cloud first, then local. No backup export.
-$('resetAll').onclick=async()=>{
- if(!cloud.user||!cloud.db){alert('Please connect Firebase and sign in with Google first. Nothing was deleted.');return;}
- if(syncBusy){alert('Cloud saving is in progress. Wait a moment and try again.');return;}
- if(!confirm('Delete ALL study records on this iPad AND Firebase? This cannot be undone.'))return;
- if(prompt('Type DELETE to confirm permanent removal of all study records:')!=='DELETE')return;
- clearTimeout(syncTimer);syncBusy=true;status('Deleting study records from Firebase…');
- const uid=cloud.user.uid,ref=cloud.doc(cloud.db,'users',uid,'app','main');
- try{
-  const blank=fresh();blank.resetAt=Date.now();blank.updatedAt=blank.resetAt;
-  await cloud.runTransaction(cloud.db,async tx=>{await tx.get(ref);tx.set(ref,blank)});
-  data=blank;localStorage.setItem(KEY,JSON.stringify(data));cloudBaseline=blank.updatedAt;dirty=false;
-  loadDay();render();status('All records cleared • Firebase saved ✓');
-  alert('All study records cleared from this iPad and Firebase. Start fresh tomorrow!');
- }catch(e){status('Reset failed • no local records deleted');alert('Could not clear Firebase. Your local records were kept. '+e.message)}
- finally{syncBusy=false}
-};
+
 $('connectFirebase').onclick=connectFirebase;$('loginGoogle').onclick=async()=>{if(!cloud.auth)return alert('Connect Firebase first.');try{await cloud.signInWithPopup(cloud.auth,new cloud.GoogleAuthProvider())}catch(e){alert('Google sign-in failed: '+e.message+' If popups are blocked on iPad, allow popups in Safari settings and try again.')}};$('logoutGoogle').onclick=async()=>{if(cloud.auth)await cloud.signOut(cloud.auth)};$('syncNow').onclick=()=>{if(!cloud.user)return alert('Connect Firebase and sign in first.');syncCloud()};
 try{let c=localStorage.getItem('ssc_firebase_config');if(c)$('firebaseConfig').value=c}catch{}render();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
