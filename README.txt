@@ -1,11 +1,9 @@
-SSC DAILY TRACK 2.0 — FULL APPLICATION
+SSC DAILY TRACK 2.0 — REFERENCE COLORS
 
-Upload the CONTENTS of this ZIP to the ROOT of your existing GitHub Pages repository. Replace index.html, app.js, sw.js, manifest and icons. Do not upload the ZIP itself.
+Theme updated to match your supplied screenshot: purple/navy/teal gradient header, navy cards, purple-to-blue navigation and readable white text. The application logic is retained from the corrected full app build.
 
-This is an editable app: daily logs, syllabus, revisions, mock scores, Sunday tests, mistakes, history, backups, Google login and Firestore cloud saving. The Smart Plan tab adds recommendations, predictions, readiness and analytics.
+Extract this ZIP and upload its contents to the root of your existing GitHub Pages repository, replacing matching files. Do not upload the ZIP itself. Refresh or close and reopen the installed app after publishing to refresh the service worker cache.
 
-IMPORTANT: Export and retain a JSON backup before deployment. Firebase config is read from the existing browser local storage when available, or paste it in Settings and Connect Firebase. Existing project and user document path users/{uid}/app/main are retained. Firebase rules must protect users/{uid}.
+Keep your JSON backup safe. Firebase Google sign-in and live cloud saving have not been independently verified. The app may require Firebase configuration in Settings.
 
-Cloud saving is paused when cloud and local timestamps differ, rather than overwriting another version. Keep your JSON backup. Cloud conflicts require manual review and are NOT auto-merged. Google sign-in and Firestore security rules require testing on the deployed site. No production cloud integration has been tested in this environment.
-
-Mock predictions require at least 5 full-length 200-mark mock results. Readiness is withheld when data is insufficient. No AI service or paid API is required.
+New SSC Daily Track icon included in 180px, 192px and 512px sizes. After GitHub Pages updates, remove and re-add the iPad Home Screen shortcut if the icon is cached.
