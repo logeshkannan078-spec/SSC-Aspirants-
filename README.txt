@@ -1,11 +1,19 @@
-SSC MISSION CONTROL — iPAD / iPHONE SETUP
+SSC DAILY TRACK — iPAD / iPHONE
+================================
+1. Download the ZIP and extract it in the iPad Files app.
+2. Back up your OLD app study records before replacing the app. The new app does not automatically migrate old-format data.
+3. Open your existing GitHub repository: https://github.com/logeshkannan078-spec/SSC-Aspirants-
+4. Upload ALL the files INSIDE this folder to the repository ROOT (not the ZIP, and not an extra folder). Replace files with the same names. Commit changes.
+5. Keep GitHub Settings > Pages > Deploy from branch > main > /(root).
+6. Wait a few minutes. Open https://logeshkannan078-spec.github.io/SSC-Aspirants-/ in Safari, refresh, then Share > Add to Home Screen.
+7. App works locally without Firebase. To connect Firebase, go to Settings inside the app, paste your Firebase WEB config in valid JSON and tap Connect Firebase, then Sign in with Google.
+   Example JSON: {"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}
+   Find real values in Firebase Console > Project Settings > Your apps > Web app > SDK setup and configuration.
+   Firebase Authentication > Settings > Authorized domains: add logeshkannan078-spec.github.io.
+   Firestore rules must allow signed-in users only under users/{userId}/... .
+8. On first sign-in, use Sync now to upload this device's records. After that, edits automatically sync when signed in and online. The app asks before replacing newer cloud data. When switching devices, check save status before entering new data. Simultaneous edits on two devices are NOT merged.
+9. Use Settings > Download JSON backup regularly. A cloud service is not guaranteed permanent storage.
+10. Sunday tests are MANUAL score entry; app lists topics from the preceding Monday-Saturday. It does not generate a question paper.
+11. The syllabus is a useful topic checklist, not a guarantee of exhaustive official SSC coverage; verify against current SSC notification.
 
-1. Create a free GitHub account at https://github.com
-2. Create a new PUBLIC repository named ssc-mission-control.
-3. Choose Add file > Upload files. Upload the CONTENTS of this ZIP (index.html, manifest.webmanifest, sw.js, icons), not the ZIP itself. Commit changes.
-4. Open repository Settings > Pages. Under Build and deployment choose Deploy from a branch, branch main, folder /(root), then Save.
-5. Wait a few minutes and open https://YOUR-USERNAME.github.io/ssc-mission-control/ in Safari on iPad/iPhone.
-6. In Safari use Share > Add to Home Screen > Add (on some versions: Share > More > Add to Home Screen).
-7. Open SSC Mission from the Home Screen. Visit online once so offline assets are cached.
-
-IMPORTANT: Your data stays in Safari / installed app local storage on that device. Export a JSON backup regularly. Backups may be needed when changing device or clearing website data. No cloud sync yet. GitHub Pages PUBLIC repositories expose app code, so never upload private notes, personal data, or backup JSON files.
+NOTE: GitHub Pages publishes your code publicly, not your private local study records. Never upload backups or passwords to your public repository.
