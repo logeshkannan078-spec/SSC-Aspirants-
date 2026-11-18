@@ -3,24 +3,43 @@ const chapters={Maths:['Number System','Divisibility, LCM & HCF','Simplification
 const KEY='ssc_daily_track_v1'; const today=()=>new Date().toLocaleDateString('en-CA'); const dateAdd=(s,n)=>{let d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return d.toLocaleDateString('en-CA')};const fmt=s=>new Date(s+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});const weekStart=s=>{let d=new Date(s+'T12:00:00'),w=d.getDay();d.setDate(d.getDate()-((w+6)%7));return d.toLocaleDateString('en-CA')};const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fresh=()=>({days:{},topics:[],syllabus:{},revisions:{},mocks:[],sundays:{},mistakes:[],updatedAt:0});let data;try{data={...fresh(),...JSON.parse(localStorage.getItem(KEY)||'{}')}}catch{data=fresh()}let cloud={db:null,auth:null,user:null,doc:null,getDoc:null,setDoc:null,onAuthStateChanged:null,signInWithPopup:null,GoogleAuthProvider:null,signOut:null},syncTimer,dirty=false;let cloudStatus='Local save active';
 function status(s){cloudStatus=s;$('syncBadge').textContent='● '+s;$('saveStatus').textContent=s}function save(){data.updatedAt=Date.now();localStorage.setItem(KEY,JSON.stringify(data));dirty=true;status(cloud.user?'Saved locally • cloud pending':'Saved locally');clearTimeout(syncTimer);if(cloud.user)syncTimer=setTimeout(()=>syncCloud(),1100);render()}let syncBusy=false, cloudBaseline=null, syncBlocked=false;
+function mergeRecords(local,remote){
+ const a={...fresh(),...(remote||{})},b={...fresh(),...(local||{})};
+ if(Number(a.resetAt||0)>Number(b.updatedAt||0))return {...a};
+ if(Number(b.resetAt||0)>Number(a.updatedAt||0))return {...b};
+ const merged={...a,...b};
+ merged.resetAt=Math.max(Number(a.resetAt||0),Number(b.resetAt||0));
+ for(const k of ['days','syllabus','revisions','sundays'])
+  merged[k]={...(a[k]||{}),...(b[k]||{})};
+ for(const k of ['topics','mocks','mistakes']){
+  const items=new Map();
+  for(const x of [...(a[k]||[]),...(b[k]||[])])
+   if(x&&typeof x==='object')items.set(String(x.id||JSON.stringify(x)),x);
+  merged[k]=[...items.values()];
+ }
+ merged.updatedAt=Math.max(Date.now(),Number(a.updatedAt||0),Number(b.updatedAt||0))+1;
+ return merged;
+}
 async function syncCloud(){
- if(!cloud.user||!cloud.db||syncBusy||syncBlocked)return;
- syncBusy=true;status('Checking cloud before saving…');
- const snapshot=JSON.parse(JSON.stringify(data)), uid=cloud.user.uid;
+ if(!cloud.user||!cloud.db||syncBusy)return;
+ syncBusy=true;status('Saving to Firebase…');
+ const uid=cloud.user.uid,ref=cloud.doc(cloud.db,'users',uid,'app','main');
+ const snapshot=JSON.parse(JSON.stringify(data));
  try{
-  const ref=cloud.doc(cloud.db,'users',uid,'app','main');
-  const remote=await cloud.getDoc(ref);
-  const remoteTime=remote.exists()?Number(remote.data().updatedAt||0):null;
-  if(remoteTime!==cloudBaseline){
-   syncBlocked=true;status('Cloud changed on another device • export backup and resolve conflict');
-   alert('Cloud records changed since your last sync. Automatic upload paused to protect both copies. Export your local backup before resolving.');
-   return;
-  }
-  await cloud.setDoc(ref,snapshot);
-  cloudBaseline=Number(snapshot.updatedAt||0);
-  if(Number(data.updatedAt||0)===cloudBaseline){dirty=false;status('Saved online ✓')}
-  else{status('Newer local edits pending');clearTimeout(syncTimer);syncTimer=setTimeout(syncCloud,1200)}
- }catch(e){status('Cloud save failed • local copy kept: '+e.message)}
+  const merged=await cloud.runTransaction(cloud.db,async tx=>{
+   const remote=await tx.get(ref);
+   const result=mergeRecords(snapshot,remote.exists()?remote.data():null);
+   tx.set(ref,result);
+   return result;
+  });
+  const newerLocal=Number(data.updatedAt||0)>Number(snapshot.updatedAt||0);
+  data=mergeRecords(newerLocal?data:snapshot,merged);
+  localStorage.setItem(KEY,JSON.stringify(data));
+  cloudBaseline=Number(merged.updatedAt||0);
+  loadDay();render();
+  if(newerLocal){status('Saved online ✓ • latest edits syncing');clearTimeout(syncTimer);syncTimer=setTimeout(syncCloud,1200)}
+  else{dirty=false;status('Saved online ✓')}
+ }catch(e){status('Cloud save failed • saved on iPad: '+e.message)}
  finally{syncBusy=false}
 }
 const makeId=()=>crypto.randomUUID?.()||String(Date.now()+Math.random());const plan=mode=>mode==='12'?{Maths:5,English:3,Reasoning:2,'GK / GS':2}:{Maths:4,English:2,Reasoning:2,'GK / GS':2};const hours=d=>subjects.reduce((a,s)=>a+Number(d?.hours?.[s]||0),0);const sum=arr=>arr.reduce((a,b)=>a+b,0);const dayList=()=>Object.entries(data.days).sort((a,b)=>b[0].localeCompare(a[0]));const percent=(n,d)=>d?Math.round(n/d*100):0;
@@ -46,42 +65,31 @@ function focusHtml(){let stats=weekStats(weekStart(today()));let remaining=Objec
 function renderAnalytics(){let start=weekStart(today()),prev=dateAdd(start,-7),now=weekStats(start),before=weekStats(prev),dates=Array.from({length:7},(_,i)=>dateAdd(start,i));let all=[...data.mocks.map(m=>({date:m.date,pct:percent(m.score,m.max)})),...Object.entries(data.sundays).map(([date,v])=>({date,pct:sum(Object.values(v.scores))/2}))];let weekly=Array.from({length:6},(_,i)=>{let w=dateAdd(start,(i-5)*7),a=all.filter(m=>m.date>=w&&m.date<=dateAdd(w,6));return {label:fmt(w).slice(0,6),value:a.length?sum(a.map(m=>m.pct))/a.length:0}});$('analyticsMetrics').innerHTML=[['Hours this week',now.hrs.toFixed(1)],['Study days',now.days],['Tests this week',now.mocks],['Average test %',now.average===null?'—':now.average.toFixed(1)+'%']].map(([k,v])=>`<div class="card"><div class="muted">${k}</div><div class="metric purple">${v}</div></div>`).join('');$('studyChart').innerHTML=bars(dates.map(date=>({label:fmt(date).slice(0,6),value:hours(data.days[date])})),v=>v.toFixed(1)+'h');$('mockChart').innerHTML=bars(weekly,v=>Math.round(v)+'%');$('weeklyComparison').innerHTML=`<div class="scoreline"><span>Study hours</span><b>${change(now.hrs,before.hrs,' hrs')}</b></div><div class="scoreline"><span>Logged study days</span><b>${change(now.days,before.days)}</b></div><div class="scoreline"><span>Average test score</span><b>${change(now.average,before.average,'%')}</b></div><p class="muted">Current week compared with previous Monday–Sunday week. A missing test average is not counted as zero.</p>`;let subjectHours=subjects.map(s=>({s,h:sum(Object.entries(data.days).filter(([date])=>date>=start&&date<=dateAdd(start,6)).map(([,d])=>Number(d.hours?.[s]||0)))})).sort((a,b)=>a.h-b.h);$('recommendations').innerHTML=`<p>• Review pending topics: <b>${pending(today()).length}</b> revision(s).</p><p>• Least logged subject this week: <b>${esc(subjectHours[0].s)}</b> (${subjectHours[0].h.toFixed(1)} hrs).</p><p>• Review your mistake notebook before Sunday: <b>${data.mistakes.length}</b> saved lesson(s).</p><p class="muted">Suggestions use logged data, not AI-generated exam predictions.</p>`}
 function renderHistory(){let month=$('historyMonth').value,s=$('historySubject').value;let days=dayList().filter(([date])=>date.startsWith(month));$('historyList').innerHTML=days.length?days.map(([date,d])=>`<div class="item"><div class="itemrow"><div><b>${fmt(date)}</b><div class="muted">${hours(d).toFixed(2)} / ${d.mode} hrs • ${esc(d.notes||'No notes')}</div></div><div class="actions"><button class="btn alt" data-edit-day="${date}">Edit</button><button class="btn danger" data-delete-day="${date}">Delete</button></div></div><div class="tiny muted">${subjects.filter(x=>s==='All'||s===x).map(x=>`${esc(x)}: ${Number(d.hours?.[x]||0)}h`).join(' • ')}</div></div>`).join(''):'<div class="empty">No daily records for this month.</div>';document.querySelectorAll('[data-edit-day]').forEach(b=>b.onclick=()=>{$('dayDate').value=b.dataset.editDay;loadDay();go('daily')});document.querySelectorAll('[data-delete-day]').forEach(b=>b.onclick=()=>{if(confirm('Delete this daily study record?')){delete data.days[b.dataset.deleteDay];save()}})}$('historyMonth').onchange=renderHistory;$('historySubject').onchange=renderHistory;
 $('exportData').onclick=()=>{let blob=new Blob([JSON.stringify({app:'SSC Daily Track',version:1,exportedAt:new Date().toISOString(),data},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='ssc-daily-track-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};$('importData').onchange=async e=>{let file=e.target.files?.[0];if(!file)return;try{let parsed=JSON.parse(await file.text());if(parsed.app!=='SSC Daily Track'||!parsed.data||typeof parsed.data.days!=='object'||!Array.isArray(parsed.data.topics))throw Error('Not a valid SSC Daily Track backup');if(!confirm('Replace all local records with this backup? Export a backup first if needed.'))return;data={...fresh(),...parsed.data,updatedAt:Date.now()};localStorage.setItem(KEY,JSON.stringify(data));syncBlocked=!!cloud.user;status('Backup imported locally • cloud upload paused');loadDay();render();alert('Backup imported. Use Sync now only if you want to upload this imported data.')}catch(err){alert(err.message)}e.target.value=''};
-async function connectFirebase(){let config;try{let raw=$('firebaseConfig').value.trim();if(!raw)throw Error('Paste your Firebase web configuration JSON first.');raw=raw.replace(/^const\s+firebaseConfig\s*=\s*/,'').replace(/;\s*$/,'');config=JSON.parse(raw);if(!config.apiKey||!config.authDomain||!config.projectId||!config.appId)throw Error('Configuration needs apiKey, authDomain, projectId and appId.');}catch(e){return alert(e.message+' Use valid JSON with double-quoted property names.')}try{status('Connecting to Firebase…');let [a,f]=await Promise.all([import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')]);let {initializeApp,getApps,getApp}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');let app=getApps().length?getApp():initializeApp(config);cloud={...cloud,db:f.getFirestore(app),auth:a.getAuth(app),doc:f.doc,getDoc:f.getDoc,setDoc:f.setDoc,runTransaction:f.runTransaction,onAuthStateChanged:a.onAuthStateChanged,signInWithPopup:a.signInWithPopup,GoogleAuthProvider:a.GoogleAuthProvider,signOut:a.signOut};localStorage.setItem('ssc_firebase_config',JSON.stringify(config));a.onAuthStateChanged(cloud.auth,async user=>{cloud.user=user;$('accountStatus').textContent=user?'Signed in: '+(user.email||'Google account'):'Not signed in';if(user){status('Checking cloud data…');try{let ref=f.doc(cloud.db,'users',user.uid,'app','main'),remote=await f.getDoc(ref);if(remote.exists()){let r=remote.data();cloudBaseline=Number(r.updatedAt||0);syncBlocked=false;if((r.updatedAt||0)>(data.updatedAt||0)){if(confirm('Cloud has newer records. Load them on this device?')){data={...fresh(),...r};localStorage.setItem(KEY,JSON.stringify(data));loadDay();render();status('Loaded from cloud ✓')}else {syncBlocked=true;status('Cloud newer • upload paused to protect records')}}else if((r.updatedAt||0)<(data.updatedAt||0)){syncBlocked=true;status('Local/cloud versions differ • upload paused; export backup')}else status('Saved online ✓')}else {cloudBaseline=null;syncBlocked=false;status('No cloud records yet • tap Sync now')}}catch(e){status('Cloud read error: '+e.message)}}else status('Local save active')});alert('Firebase connected. Now tap Sign in with Google.')}catch(e){status('Firebase connection error');alert(e.message)}}
-function exportCopy(obj,label){
- const blob=new Blob([JSON.stringify({app:'SSC Daily Track',version:1,exportedAt:new Date().toISOString(),data:obj},null,2)],{type:'application/json'});
- const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='ssc-'+label+'-'+today()+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
-}
-const recordSummary=d=>`${Object.keys(d.days||{}).length} days, ${(d.topics||[]).length} topics, ${(d.mocks||[]).length} mocks, ${Object.keys(d.syllabus||{}).length} chapter statuses`;
-$('resolveCloud').onclick=async()=>{
- if(!cloud.user||!cloud.db)return alert('Connect Firebase and sign in first.');
- if(syncBusy)return alert('Please wait until saving finishes.');
- clearTimeout(syncTimer);syncBlocked=true;
- const ref=cloud.doc(cloud.db,'users',cloud.user.uid,'app','main');
+async function connectFirebase(){let config;try{let raw=$('firebaseConfig').value.trim();if(!raw)throw Error('Paste your Firebase web configuration JSON first.');raw=raw.replace(/^const\s+firebaseConfig\s*=\s*/,'').replace(/;\s*$/,'');config=JSON.parse(raw);if(!config.apiKey||!config.authDomain||!config.projectId||!config.appId)throw Error('Configuration needs apiKey, authDomain, projectId and appId.');}catch(e){return alert(e.message+' Use valid JSON with double-quoted property names.')}try{status('Connecting to Firebase…');let [a,f]=await Promise.all([import('https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js'),import('https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js')]);let {initializeApp,getApps,getApp}=await import('https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js');let app=getApps().length?getApp():initializeApp(config);cloud={...cloud,db:f.getFirestore(app),auth:a.getAuth(app),doc:f.doc,getDoc:f.getDoc,setDoc:f.setDoc,runTransaction:f.runTransaction,onAuthStateChanged:a.onAuthStateChanged,signInWithPopup:a.signInWithPopup,GoogleAuthProvider:a.GoogleAuthProvider,signOut:a.signOut};localStorage.setItem('ssc_firebase_config',JSON.stringify(config));a.onAuthStateChanged(cloud.auth,async user=>{cloud.user=user;$('accountStatus').textContent=user?'Signed in: '+(user.email||'Google account'):'Not signed in';if(user){status('Checking cloud data…');try{let ref=f.doc(cloud.db,'users',user.uid,'app','main'),remote=await f.getDoc(ref);if(remote.exists()){
+ let r=remote.data();cloudBaseline=Number(r.updatedAt||0);
+ data=mergeRecords(data,r);localStorage.setItem(KEY,JSON.stringify(data));
+ loadDay();render();status('Connected • syncing…');
+}else{cloudBaseline=null;status('Connected • syncing…')}
+ syncCloud()
+ }catch(e){status('Cloud read error: '+e.message)}}else status('Local save active')});alert('Firebase connected. Now tap Sign in with Google.')}catch(e){status('Firebase connection error');alert(e.message)}}
+// Explicit, one-time destructive reset; cloud first, then local. No backup export.
+$('resetAll').onclick=async()=>{
+ if(!cloud.user||!cloud.db){alert('Please connect Firebase and sign in with Google first. Nothing was deleted.');return;}
+ if(syncBusy){alert('Cloud saving is in progress. Wait a moment and try again.');return;}
+ if(!confirm('Delete ALL study records on this iPad AND Firebase? This cannot be undone.'))return;
+ if(prompt('Type DELETE to confirm permanent removal of all study records:')!=='DELETE')return;
+ clearTimeout(syncTimer);syncBusy=true;status('Deleting study records from Firebase…');
+ const uid=cloud.user.uid,ref=cloud.doc(cloud.db,'users',uid,'app','main');
  try{
-  const snap=await cloud.getDoc(ref);
-  const remote=snap.exists()?snap.data():null;
-  const local=JSON.parse(JSON.stringify(data));
-  if(remote)exportCopy(remote,'cloud-before-resolution');
-  exportCopy(local,'local-before-resolution');
-  const summary='Local: '+recordSummary(local)+'\nCloud: '+(remote?recordSummary(remote):'No records')+
-   '\n\nBackups of both copies have been downloaded.\n\nOK = Keep LOCAL records and replace cloud.\nCancel = No changes (recommended if unsure).';
-  if(!confirm(summary)){status('No cloud changes made • backups exported');return}
-  if(prompt('To replace cloud with your local records, type REPLACE exactly:')!=='REPLACE'){
-   status('Cancelled • no cloud changes');return;
-  }
-  const expected=remote?Number(remote.updatedAt||0):null;
-  await cloud.runTransaction(cloud.db,async tx=>{
-   const current=await tx.get(ref);
-   const actual=current.exists()?Number(current.data().updatedAt||0):null;
-   if(actual!==expected)throw Error('Cloud changed again. Please retry conflict resolution.');
-   tx.set(ref,local);
-  });
-  cloudBaseline=Number(local.updatedAt||0);syncBlocked=false;dirty=false;
-  status('Cloud resolved and saved ✓');
-  alert('Your selected local records are now saved to Firebase. Both backups were downloaded.');
- }catch(e){syncBlocked=true;status('Cloud resolution failed • local data kept');alert(e.message)}
+  const blank=fresh();blank.resetAt=Date.now();blank.updatedAt=blank.resetAt;
+  await cloud.runTransaction(cloud.db,async tx=>{await tx.get(ref);tx.set(ref,blank)});
+  data=blank;localStorage.setItem(KEY,JSON.stringify(data));cloudBaseline=blank.updatedAt;dirty=false;
+  loadDay();render();status('All records cleared • Firebase saved ✓');
+  alert('All study records cleared from this iPad and Firebase. Start fresh tomorrow!');
+ }catch(e){status('Reset failed • no local records deleted');alert('Could not clear Firebase. Your local records were kept. '+e.message)}
+ finally{syncBusy=false}
 };
-$('connectFirebase').onclick=connectFirebase;$('loginGoogle').onclick=async()=>{if(!cloud.auth)return alert('Connect Firebase first.');try{await cloud.signInWithPopup(cloud.auth,new cloud.GoogleAuthProvider())}catch(e){alert('Google sign-in failed: '+e.message+' If popups are blocked on iPad, allow popups in Safari settings and try again.')}};$('logoutGoogle').onclick=async()=>{if(cloud.auth)await cloud.signOut(cloud.auth)};$('syncNow').onclick=()=>{if(!cloud.user)return alert('Connect Firebase and sign in first.');if(syncBlocked)return alert('Cloud conflict detected. Export your local backup and reload before syncing.');if(confirm('Save this device’s records to Firebase only if the cloud copy has not changed?'))syncCloud()};
+$('connectFirebase').onclick=connectFirebase;$('loginGoogle').onclick=async()=>{if(!cloud.auth)return alert('Connect Firebase first.');try{await cloud.signInWithPopup(cloud.auth,new cloud.GoogleAuthProvider())}catch(e){alert('Google sign-in failed: '+e.message+' If popups are blocked on iPad, allow popups in Safari settings and try again.')}};$('logoutGoogle').onclick=async()=>{if(cloud.auth)await cloud.signOut(cloud.auth)};$('syncNow').onclick=()=>{if(!cloud.user)return alert('Connect Firebase and sign in first.');syncCloud()};
 try{let c=localStorage.getItem('ssc_firebase_config');if(c)$('firebaseConfig').value=c}catch{}render();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
 

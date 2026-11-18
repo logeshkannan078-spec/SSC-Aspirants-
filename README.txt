@@ -1,1 +1,4 @@
-SSC Daily Track 2.0 — Firebase Conflict Fix. Extract and upload all files to the existing GitHub Pages repository root. Keep your JSON backup. In Settings, connect Google, then tap Fix cloud conflict. It downloads local and cloud backup copies and asks for explicit confirmation before replacing the cloud copy. This action can overwrite cloud records; compare the summaries first. No cloud data is modified until you explicitly confirm and type REPLACE. Firebase rules and live syncing still require testing.
+SSC Daily Track - Start Fresh Reset
+Extract and upload all files to your EXISTING GitHub Pages repository, replacing the files.
+In Settings, connect/sign in to Firebase and tap Reset All Study Records. Confirm and type DELETE. This clears local study records and the Firebase document, without creating backups. Google login and Firebase configuration remain.
+IMPORTANT: Other devices with older versions of the app could reupload old data. Update the app on all devices before continuing.
