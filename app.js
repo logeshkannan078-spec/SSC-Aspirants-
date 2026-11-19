@@ -38,6 +38,15 @@ $('buildSundayPlan').onclick=()=>{let d=$('sundayDate').value;if(new Date(d+'T12
 
 try{let c=localStorage.getItem('ssc_firebase_config');if(c)$('firebaseConfig').value=c}catch{}render();if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
-// Keep the existing app's data model, Firebase configuration and JSON backups.
-// Mirror navigation in the demo-style iPad sidebar without changing page handlers.
-(function(){const side=document.getElementById('sideNav');if(!side)return;const icons={'home':'⌂','daily':'◷','topics':'▤','revision':'↻','tests':'☑','mistakes':'⚠','analytics':'▥','history':'▦','settings':'⚙'};side.innerHTML=nav.map(([id,label])=>`<button type="button" data-side-tab="${id}" class="${id==='home'?'active':''}"><span class="nav-symbol">${icons[id]}</span><span class="nav-text">${label.replace(/^\S+\s/,'')}</span></button>`).join('');side.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>go(b.dataset.sideTab)));const originalGo=window.go;window.go=function(id){originalGo(id);side.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.sideTab===id));};})();
+// Navigation is present in HTML, so it never disappears if another feature fails.
+document.querySelectorAll('[data-side-tab]').forEach(button => {
+  button.addEventListener('click', () => go(button.dataset.sideTab));
+});
+const originalGo = go;
+go = function(id) {
+  originalGo(id);
+  document.querySelectorAll('[data-side-tab]').forEach(button => {
+    button.classList.toggle('active', button.dataset.sideTab === id);
+  });
+};
+window.go = go;
