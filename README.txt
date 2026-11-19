@@ -17,3 +17,11 @@ SSC DAILY TRACK — iPAD / iPHONE
 11. The syllabus is a useful topic checklist, not a guarantee of exhaustive official SSC coverage; verify against current SSC notification.
 
 NOTE: GitHub Pages publishes your code publicly, not your private local study records. Never upload backups or passwords to your public repository.
+
+
+NAVY UI UPDATE (2026-11-19)
+- Demo-inspired midnight navy sidebar and cards; mobile bottom navigation.
+- No sample records are added. Existing localStorage key and Firebase document path are unchanged.
+- Offline JSON export/import and existing Firebase Google sign-in remain available under Settings.
+- Deploy all files together to GitHub Pages.
+- Firebase requires your existing configuration and Google sign-in; cloud sync is not automatic until connected.
